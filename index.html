@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JINRO — 人狼ゲーム</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Noto+Serif+JP:wght@300;400;700&display=swap');
+
+:root {
+  --bg: #0d0a07;
+  --surface: #171210;
+  --surface2: #211a15;
+  --border: rgba(180,140,90,0.15);
+  --gold: #c8973a;
+  --gold2: #e8b84b;
+  --red: #c0392b;
+  --red2: #e74c3c;
+  --blue: #2471a3;
+  --blue2: #3498db;
+  --green: #1e8449;
+  --text: #f0e6d3;
+  --muted: rgba(240,230,210,0.45);
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Serif JP', serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 20%, rgba(200,151,58,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(192,57,43,0.06) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c8973a' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+}
+
+.wrap { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 2rem 1rem; }
+
+.logo {
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  font-size: 2.2rem;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.25rem;
+  color: var(--gold);
+  text-shadow: 0 0 30px rgba(200,151,58,0.4);
+}
+.logo-sub {
+  font-size: 0.75rem;
+  letter-spacing: 0.3em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 2.5rem;
+}
+
+.screen { display: none; }
+.screen.active { display: block; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.75rem;
+  margin-bottom: 1rem;
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  opacity: 0.4;
+}
+
+h2 {
+  font-family: 'Cinzel', serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 1.25rem;
+  color: var(--gold);
+  letter-spacing: 0.05em;
+}
+h3 {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+}
+
+label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 5px; }
+
+input[type="text"], input[type="number"], select {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-family: 'Noto Serif JP', serif;
+  outline: none;
+  transition: border-color .2s;
+}
+input:focus, select:focus { border-color: var(--gold); }
+select option { background: var(--surface2); }
+
+.field { margin-bottom: 1rem; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 11px 24px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 0.9rem;
+  font-family: 'Noto Serif JP', serif;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all .2s;
+  background: var(--surface2);
+  color: var(--text);
+  width: 100%;
+  margin-top: 6px;
+}
+.btn:hover { border-color: var(--gold); background: rgba(200,151,58,0.08); }
+.btn:active { transform: scale(0.98); }
+
+.btn-gold {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #0d0a07;
+  font-weight: 700;
+}
+.btn-gold:hover { background: var(--gold2); border-color: var(--gold2); }
+
+.btn-red { border-color: rgba(192,57,43,0.4); color: var(--red2); }
+.btn-red:hover { background: rgba(192,57,43,0.1); border-color: var(--red2); }
+
+.btn-sm { padding: 7px 14px; font-size: 0.8rem; width: auto; margin-top: 0; }
+
+/* HOME */
+.home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 2rem; }
+@media(max-width:500px){ .home-grid { grid-template-columns: 1fr; } }
+
+.home-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem 1.5rem;
+  cursor: pointer;
+  text-align: left;
+  transition: all .2s;
+  color: var(--text);
+  position: relative;
+  overflow: hidden;
+}
+.home-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  opacity: 0;
+  transition: opacity .2s;
+}
+.home-btn:hover { border-color: rgba(200,151,58,0.4); background: rgba(200,151,58,0.04); transform: translateY(-2px); }
+.home-btn:hover::before { opacity: 1; }
+.home-btn .hb-icon { font-size: 2rem; margin-bottom: 0.75rem; }
+.home-btn .hb-title { font-family: 'Cinzel', serif; font-size: 1rem; font-weight: 700; margin-bottom: 4px; color: var(--gold); }
+.home-btn .hb-desc { font-size: 0.8rem; color: var(--muted); line-height: 1.6; }
+
+/* ROOM CODE */
+.room-code-display {
+  font-family: 'Cinzel', serif;
+  font-size: 3rem;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  color: var(--gold);
+  text-align: center;
+  padding: 1.5rem;
+  background: rgba(200,151,58,0.06);
+  border: 1px solid rgba(200,151,58,0.2);
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+  text-shadow: 0 0 20px rgba(200,151,58,0.3);
+}
+
+/* ROLE CONFIG */
+.role-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 10px; margin-bottom: 1rem; }
+.role-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.role-item .role-name { font-size: 0.85rem; flex: 1; }
+.role-item .role-icon { font-size: 1.1rem; }
+.role-item input[type=number] { width: 50px; padding: 4px 8px; font-size: 0.85rem; text-align: center; }
+
+/* PLAYER LIST */
+.player-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.player-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: 0.8rem;
+}
+.player-chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+.player-chip.dead { opacity: 0.4; text-decoration: line-through; }
+.player-chip.dead .dot { background: var(--red); }
+
+/* PHASE BANNER */
+.phase-banner {
+  text-align: center;
+  padding: 1.25rem;
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+  font-family: 'Cinzel', serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+.phase-day {
+  background: rgba(200,151,58,0.1);
+  border: 1px solid rgba(200,151,58,0.3);
+  color: var(--gold);
+}
+.phase-night {
+  background: rgba(36,113,163,0.1);
+  border: 1px solid rgba(36,113,163,0.3);
+  color: var(--blue2);
+}
+.phase-vote {
+  background: rgba(192,57,43,0.1);
+  border: 1px solid rgba(192,57,43,0.3);
+  color: var(--red2);
+}
+
+/* ROLE CARD for player */
+.role-card {
+  text-align: center;
+  padding: 2rem;
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+  position: relative;
+  overflow: hidden;
+}
+.role-card.werewolf { background: rgba(192,57,43,0.12); border: 2px solid rgba(192,57,43,0.4); }
+.role-card.citizen { background: rgba(30,132,73,0.1); border: 2px solid rgba(30,132,73,0.3); }
+.role-card.seer { background: rgba(36,113,163,0.1); border: 2px solid rgba(36,113,163,0.3); }
+.role-card.knight { background: rgba(200,151,58,0.1); border: 2px solid rgba(200,151,58,0.3); }
+.role-card .rc-icon { font-size: 4rem; margin-bottom: 0.75rem; }
+.role-card .rc-name { font-family: 'Cinzel', serif; font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+.role-card .rc-desc { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
+.role-card.werewolf .rc-name { color: var(--red2); }
+.role-card.citizen .rc-name { color: #2ecc71; }
+.role-card.seer .rc-name { color: var(--blue2); }
+.role-card.knight .rc-name { color: var(--gold); }
+
+/* WAITING */
+.waiting-anim { text-align: center; padding: 2rem; }
+.pulse { animation: pulse 2s infinite; display: inline-block; font-size: 3rem; }
+@keyframes pulse { 0%,100%{opacity:.4;transform:scale(.9)} 50%{opacity:1;transform:scale(1)} }
+
+/* HOST PANEL */
+.host-layout { display: grid; grid-template-columns: 1fr 280px; gap: 1rem; align-items: start; }
+@media(max-width:640px){ .host-layout { grid-template-columns: 1fr; } }
+
+.player-manage-list { display: flex; flex-direction: column; gap: 6px; }
+.player-row {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+}
+.player-row.dead { opacity: 0.5; }
+.player-row .pr-name { flex: 1; }
+.player-row .pr-role { font-size: 0.75rem; color: var(--muted); }
+.player-row .pr-status { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+.player-row.dead .pr-status { background: var(--red); }
+
+/* BADGE */
+.badge {
+  display: inline-block; font-size: 0.65rem;
+  padding: 2px 8px; border-radius: 999px; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase;
+}
+.badge-wolf { background: rgba(192,57,43,0.2); color: var(--red2); border: 1px solid rgba(192,57,43,0.3); }
+.badge-citizen { background: rgba(30,132,73,0.2); color: #2ecc71; border: 1px solid rgba(30,132,73,0.3); }
+.badge-seer { background: rgba(36,113,163,0.2); color: var(--blue2); border: 1px solid rgba(36,113,163,0.3); }
+.badge-knight { background: rgba(200,151,58,0.2); color: var(--gold); border: 1px solid rgba(200,151,58,0.3); }
+
+.divider { height: 1px; background: var(--border); margin: 1rem 0; }
+.error-msg { color: var(--red2); font-size: 0.8rem; margin-top: 6px; display: none; }
+.error-msg.show { display: block; }
+
+/* DAY COUNT */
+.day-count {
+  font-family: 'Cinzel', serif;
+  font-size: 0.9rem;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.1em;
+}
+
+/* RESULT */
+.result-banner {
+  text-align: center;
+  padding: 2rem;
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+}
+.result-wolf { background: rgba(192,57,43,0.12); border: 2px solid rgba(192,57,43,0.4); }
+.result-citizen { background: rgba(30,132,73,0.1); border: 2px solid rgba(30,132,73,0.3); }
+.result-banner .rb-icon { font-size: 4rem; margin-bottom: 1rem; }
+.result-banner .rb-title { font-family: 'Cinzel', serif; font-size: 2rem; font-weight: 900; margin-bottom: 0.5rem; }
+.result-wolf .rb-title { color: var(--red2); }
+.result-citizen .rb-title { color: #2ecc71; }
+
+/* PHASE INFO for player */
+.phase-info {
+  text-align: center;
+  padding: 1.5rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+  line-height: 1.8;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="logo">JINRO</div>
+<div class="logo-sub">人狼ゲーム — オンライン役職配布システム</div>
+
+<!-- ==================== HOME ==================== -->
+<div id="screen-home" class="screen active">
+  <div class="home-grid">
+    <button class="home-btn" onclick="showScreen('screen-create')">
+      <div class="hb-icon">🌙</div>
+      <div class="hb-title">部屋を作る</div>
+      <div class="hb-desc">司会者として部屋を作成。役職を設定してゲームを開始。</div>
+    </button>
+    <button class="home-btn" onclick="showScreen('screen-join')">
+      <div class="hb-icon">🐺</div>
+      <div class="hb-title">部屋に参加</div>
+      <div class="hb-desc">ルームコードを入力して参加。役職がスマホに表示されます。</div>
+    </button>
+  </div>
+  <p style="font-size:0.8rem;color:var(--muted);text-align:center;line-height:1.6">
+    広告なし・完全無料 ・役職をスマホに表示 ・議論はLINEなど別途
+  </p>
+</div>
+
+<!-- ==================== CREATE ==================== -->
+<div id="screen-create" class="screen">
+  <div class="card">
+    <h2>部屋を作る</h2>
+    <div class="field">
+      <label>あなたの名前（司会者）</label>
+      <input type="text" id="c-name" placeholder="例：GM" maxlength="20">
+    </div>
+    <div class="divider"></div>
+    <h3>役職の人数設定</h3>
+    <div class="role-grid">
+      <div class="role-item">
+        <span class="role-icon">🐺</span>
+        <span class="role-name">人狼</span>
+        <input type="number" id="r-wolf" value="1" min="1" max="10">
+      </div>
+      <div class="role-item">
+        <span class="role-icon">👤</span>
+        <span class="role-name">市民</span>
+        <input type="number" id="r-citizen" value="3" min="0" max="20">
+      </div>
+      <div class="role-item">
+        <span class="role-icon">🔮</span>
+        <span class="role-name">占い師</span>
+        <input type="number" id="r-seer" value="1" min="0" max="3">
+      </div>
+      <div class="role-item">
+        <span class="role-icon">🛡</span>
+        <span class="role-name">騎士</span>
+        <input type="number" id="r-knight" value="1" min="0" max="3">
+      </div>
+    </div>
+    <p id="c-total" style="font-size:0.85rem;color:var(--muted);margin-bottom:1rem">合計: 6人</p>
+    <div id="c-error" class="error-msg">入力内容を確認してください</div>
+    <button class="btn btn-gold" onclick="createRoom()">部屋を作成する</button>
+    <button class="btn" onclick="showScreen('screen-home')">戻る</button>
+  </div>
+</div>
+
+<!-- ==================== JOIN ==================== -->
+<div id="screen-join" class="screen">
+  <div class="card">
+    <h2>部屋に参加</h2>
+    <div class="field">
+      <label>ルームコード（4桁）</label>
+      <input type="text" id="j-code" placeholder="例：4829" maxlength="4"
+        style="font-family:'Cinzel',serif;font-size:2rem;text-align:center;letter-spacing:.2em">
+    </div>
+    <div class="field">
+      <label>あなたの名前</label>
+      <input type="text" id="j-name" placeholder="例：山田" maxlength="20">
+    </div>
+    <div id="j-error" class="error-msg">ルームが見つからないか、満員です</div>
+    <button class="btn btn-gold" onclick="joinRoom()">参加する</button>
+    <button class="btn" onclick="showScreen('screen-home')">戻る</button>
+  </div>
+</div>
+
+<!-- ==================== HOST WAIT ==================== -->
+<div id="screen-host-wait" class="screen">
+  <div class="card">
+    <h3>ルームコード</h3>
+    <div id="room-code-display" class="room-code-display">----</div>
+    <p style="text-align:center;font-size:0.85rem;color:var(--muted);margin-bottom:1rem">
+      このコードを参加者に伝えてください
+    </p>
+    <div class="divider"></div>
+    <h3>参加者 <span id="wait-count" style="color:var(--gold)">0</span> / <span id="wait-total">6</span>人</h3>
+    <div id="wait-player-list" class="player-grid" style="margin-bottom:1rem">
+      <span style="color:var(--muted);font-size:0.8rem">まだ誰も参加していません...</span>
+    </div>
+    <button class="btn btn-gold" id="btn-start" onclick="startGame()" disabled>ゲームを開始する（役職を配布）</button>
+    <button class="btn btn-red" onclick="cancelRoom()">部屋を解散する</button>
+  </div>
+</div>
+
+<!-- ==================== PLAYER WAIT ==================== -->
+<div id="screen-player-wait" class="screen">
+  <div class="card">
+    <div class="waiting-anim">
+      <div class="pulse">🌙</div>
+      <p style="font-size:1rem;margin-top:1rem;margin-bottom:0.5rem">司会者がゲームを開始するまで待機中...</p>
+      <p style="font-size:0.8rem;color:var(--muted)">役職はゲーム開始後に表示されます</p>
+    </div>
+    <div class="divider"></div>
+    <h3>参加者</h3>
+    <div id="p-wait-list" class="player-grid"></div>
+  </div>
+</div>
+
+<!-- ==================== HOST GAME ==================== -->
+<div id="screen-host-game" class="screen">
+  <div id="h-phase-banner" class="phase-banner phase-day">☀️ 昼フェーズ — 議論タイム</div>
+  <div class="day-count" id="h-day-count">第1日目</div>
+
+  <div class="host-layout">
+    <div>
+      <div class="card">
+        <h3>フェーズ管理</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <button class="btn btn-sm" onclick="setPhase('day')" style="background:rgba(200,151,58,0.1);border-color:rgba(200,151,58,0.3);color:var(--gold)">☀️ 昼</button>
+          <button class="btn btn-sm" onclick="setPhase('night')" style="background:rgba(36,113,163,0.1);border-color:rgba(36,113,163,0.3);color:var(--blue2)">🌙 夜</button>
+          <button class="btn btn-sm" onclick="setPhase('vote')" style="background:rgba(192,57,43,0.1);border-color:rgba(192,57,43,0.3);color:var(--red2)">⚖️ 投票</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+          <button class="btn btn-sm" onclick="nextDay()" style="border-color:var(--border)">📅 次の日へ</button>
+          <button class="btn btn-sm btn-red" onclick="endGame()">🏁 ゲーム終了</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>プレイヤー管理（クリックで生存/死亡を切り替え）</h3>
+        <div id="h-player-list" class="player-manage-list"></div>
+      </div>
+
+      <div class="card">
+        <h3>役職一覧（司会者のみ表示）</h3>
+        <div id="h-role-list" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h3>生存状況</h3>
+        <div style="text-align:center;padding:1rem">
+          <div style="font-family:'Cinzel',serif;font-size:2rem;font-weight:700;color:var(--gold)" id="h-alive-count">—</div>
+          <div style="font-size:0.75rem;color:var(--muted)">人 生存</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.8rem;padding:4px 0;border-top:1px solid var(--border);margin-top:0.5rem">
+          <span style="color:var(--red2)">🐺 人狼</span><span id="h-wolf-alive">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.8rem;padding:4px 0">
+          <span style="color:#2ecc71">👥 市民陣営</span><span id="h-citi-alive">—</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>勝利条件</h3>
+        <p style="font-size:0.8rem;color:var(--muted);line-height:1.8">
+          🐺 <b style="color:var(--text)">人狼の勝利</b><br>人狼の数 ≥ 市民陣営の数<br><br>
+          👥 <b style="color:var(--text)">市民の勝利</b><br>全ての人狼を追放
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PLAYER GAME ==================== -->
+<div id="screen-player-game" class="screen">
+  <div id="p-phase-banner" class="phase-banner phase-day">☀️ 昼フェーズ</div>
+  <div class="day-count" id="p-day-count">第1日目</div>
+
+  <div id="p-role-card" class="role-card citizen">
+    <div class="rc-icon">👤</div>
+    <div class="rc-name">市民</div>
+    <div class="rc-desc">人狼を見つけて追放しましょう</div>
+  </div>
+
+  <div class="card">
+    <div class="phase-info" id="p-phase-info">
+      ☀️ 昼フェーズです。<br>みんなで議論して人狼を探しましょう。
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>生存プレイヤー</h3>
+    <div id="p-player-list" class="player-grid"></div>
+  </div>
+</div>
+
+<!-- ==================== RESULT ==================== -->
+<div id="screen-result" class="screen">
+  <div id="result-banner" class="result-banner result-citizen">
+    <div class="rb-icon">🎉</div>
+    <div class="rb-title">市民の勝利！</div>
+  </div>
+  <div class="card">
+    <h3>役職公開</h3>
+    <div id="result-role-list" style="display:flex;flex-direction:column;gap:6px"></div>
+  </div>
+  <button class="btn btn-gold" onclick="backToHome()">トップに戻る</button>
+</div>
+
+</div><!-- /wrap -->
+
+<script>
+// ============================================================
+// SUPABASE CONFIG
+// ============================================================
+const SUPABASE_URL = 'https://qqyzbpgkrshlfqxqcwng.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_hzqr7k1u0_qt6-aYaWc4cw_fs2FG4dW';
+// ============================================================
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ---------- STATE ----------
+let myRole = null;
+let myRoomId = null;
+let myPlayerId = null;
+let myName = '';
+let isHost = false;
+let allPlayers = [];
+let roomData = null;
+let realtimeChannel = null;
+
+const ROLES = {
+  wolf:    { name: '人狼🐺', icon: '🐺', desc: '夜に市民を1人襲撃できます。市民陣営を全て排除すれば勝利。', cls: 'werewolf', badge: 'badge-wolf', team: 'wolf' },
+  citizen: { name: '市民👤', icon: '👤', desc: '人狼を見つけて追放しましょう。全ての人狼を追放すれば勝利。', cls: 'citizen',  badge: 'badge-citizen', team: 'citizen' },
+  seer:    { name: '占い師🔯', icon: '🔯', desc: '毎晩1人を占い、人狼かどうか知ることができます。', cls: 'seer',     badge: 'badge-seer', team: 'citizen' },
+  knight:  { name: '騎士⚔', icon: '⚔', desc: '毎晩1人を守り、人狼の襲撃から保護できます。', cls: 'knight',   badge: 'badge-knight', team: 'citizen' },
+};
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function randCode() {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+
+// ---------- ROLE TOTAL ----------
+function updateTotal() {
+  const w = parseInt(document.getElementById('r-wolf').value)||0;
+  const c = parseInt(document.getElementById('r-citizen').value)||0;
+  const s = parseInt(document.getElementById('r-seer').value)||0;
+  const k = parseInt(document.getElementById('r-knight').value)||0;
+  document.getElementById('c-total').textContent = `合計: ${w+c+s+k}人`;
+}
+['r-wolf','r-citizen','r-seer','r-knight'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateTotal);
+});
+
+// ---------- CREATE ROOM ----------
+async function createRoom() {
+  const name = document.getElementById('c-name').value.trim();
+  const wolf = parseInt(document.getElementById('r-wolf').value)||0;
+  const citizen = parseInt(document.getElementById('r-citizen').value)||0;
+  const seer = parseInt(document.getElementById('r-seer').value)||0;
+  const knight = parseInt(document.getElementById('r-knight').value)||0;
+  const total = wolf + citizen + seer + knight;
+  const errEl = document.getElementById('c-error');
+
+  if(!name || wolf < 1 || total < 3) {
+    errEl.textContent = '名前を入力し、人狼1人以上・合計3人以上にしてください';
+    errEl.classList.add('show'); return;
+  }
+  errEl.classList.remove('show');
+
+  const roleConfig = { wolf, citizen, seer, knight, total };
+  const code = randCode();
+
+  const { data: room, error } = await sb.from('jinro_rooms').insert({
+    code,
+    role_config: roleConfig,
+    phase: 'waiting',
+    day: 1,
+    host_name: name,
+    status: 'waiting'
+  }).select().single();
+
+  if(error){ errEl.textContent = 'エラー: ' + error.message; errEl.classList.add('show'); return; }
+
+  myRoomId = room.id;
+  isHost = true;
+  myName = name;
+  roomData = room;
+
+  document.getElementById('room-code-display').textContent = code;
+  document.getElementById('wait-total').textContent = total;
+  showScreen('screen-host-wait');
+  subscribeRoom();
+  loadPlayers();
+}
+
+// ---------- JOIN ROOM ----------
+async function joinRoom() {
+  const code = document.getElementById('j-code').value.trim();
+  const name = document.getElementById('j-name').value.trim();
+  const errEl = document.getElementById('j-error');
+
+  if(!code || !name){ errEl.textContent = 'コードと名前を入力してください'; errEl.classList.add('show'); return; }
+
+  const { data: room, error } = await sb.from('jinro_rooms').select('*').eq('code', code).eq('status','waiting').single();
+  if(error || !room){ errEl.classList.add('show'); return; }
+
+  const { data: existing } = await sb.from('jinro_players').select('id').eq('room_id', room.id);
+  if(existing && existing.length >= room.role_config.total){
+    errEl.textContent = '満員です'; errEl.classList.add('show'); return;
+  }
+
+  const { data: player, error: perr } = await sb.from('jinro_players').insert({
+    room_id: room.id, name, role: null, alive: true
+  }).select().single();
+
+  if(perr){ errEl.textContent = '参加に失敗しました'; errEl.classList.add('show'); return; }
+
+  myRoomId = room.id;
+  myPlayerId = player.id;
+  isHost = false;
+  myName = name;
+  roomData = room;
+  errEl.classList.remove('show');
+
+  showScreen('screen-player-wait');
+  subscribeRoom();
+  loadPlayers();
+}
+
+// ---------- REALTIME ----------
+function subscribeRoom() {
+  if(realtimeChannel) sb.removeChannel(realtimeChannel);
+  realtimeChannel = sb.channel('jinro-' + myRoomId)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'jinro_rooms', filter: `id=eq.${myRoomId}` }, handleRoomChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'jinro_players', filter: `room_id=eq.${myRoomId}` }, handlePlayersChange)
+    .subscribe();
+}
+
+async function loadPlayers() {
+  const { data } = await sb.from('jinro_players').select('*').eq('room_id', myRoomId).order('created_at');
+  if(data){ allPlayers = data; renderWaitList(); }
+}
+
+function handleRoomChange(payload) {
+  roomData = payload.new;
+  if(!roomData) return;
+
+  if(roomData.status === 'playing') {
+    if(!isHost) {
+      // find my role
+      const me = allPlayers.find(p => p.id === myPlayerId);
+      if(me && me.role) showPlayerGame(me.role);
+      else loadPlayers().then(() => {
+        const me2 = allPlayers.find(p => p.id === myPlayerId);
+        if(me2 && me2.role) showPlayerGame(me2.role);
+      });
+    }
+  }
+
+  if(roomData.status === 'ended') {
+    showResult();
+  }
+
+  updatePhaseDisplay();
+}
+
+function handlePlayersChange() {
+  loadPlayers();
+}
+
+function renderWaitList() {
+  // host wait
+  const hwl = document.getElementById('wait-player-list');
+  const wc = document.getElementById('wait-count');
+  if(hwl) {
+    wc.textContent = allPlayers.length;
+    hwl.innerHTML = allPlayers.length === 0
+      ? '<span style="color:var(--muted);font-size:0.8rem">まだ誰も参加していません...</span>'
+      : allPlayers.map(p => `<span class="player-chip"><span class="dot"></span>${p.name}</span>`).join('');
+    document.getElementById('btn-start').disabled = allPlayers.length < (roomData?.role_config?.total || 999);
+  }
+  // player wait
+  const pwl = document.getElementById('p-wait-list');
+  if(pwl) {
+    pwl.innerHTML = allPlayers.map(p => `<span class="player-chip"><span class="dot"></span>${p.name}</span>`).join('');
+  }
+  // host game player list
+  renderHostPlayerList();
+  renderPlayerGameList();
+}
+
+function renderHostPlayerList() {
+  const el = document.getElementById('h-player-list');
+  if(!el) return;
+  el.innerHTML = allPlayers.map(p => {
+    const r = ROLES[p.role] || {};
+    return `<div class="player-row ${p.alive?'':'dead'}" onclick="toggleAlive('${p.id}')">
+      <div class="pr-status"></div>
+      <div class="pr-name">${p.name}</div>
+      <div class="pr-role">${r.icon||''} ${r.name||'未配布'}</div>
+      <span class="badge ${r.badge||''}">${p.alive?'生存':'死亡'}</span>
+    </div>`;
+  }).join('');
+
+  // role list
+  const rl = document.getElementById('h-role-list');
+  if(rl) {
+    rl.innerHTML = allPlayers.map(p => {
+      const r = ROLES[p.role] || {};
+      return `<div style="display:flex;align-items:center;gap:10px;font-size:0.85rem;padding:6px;background:var(--surface2);border-radius:6px;border:1px solid var(--border)">
+        <span>${r.icon||'?'}</span>
+        <span style="flex:1">${p.name}</span>
+        <span class="badge ${r.badge||''}">${r.name||'未配布'}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // alive counts
+  const alive = allPlayers.filter(p=>p.alive);
+  const wolfAlive = alive.filter(p=>ROLES[p.role]?.team==='wolf').length;
+  const citiAlive = alive.filter(p=>ROLES[p.role]?.team==='citizen').length;
+  const ac = document.getElementById('h-alive-count');
+  const wa = document.getElementById('h-wolf-alive');
+  const ca = document.getElementById('h-citi-alive');
+  if(ac) ac.textContent = alive.length;
+  if(wa) wa.textContent = wolfAlive;
+  if(ca) ca.textContent = citiAlive;
+}
+
+function renderPlayerGameList() {
+  const el = document.getElementById('p-player-list');
+  if(!el) return;
+  el.innerHTML = allPlayers.map(p =>
+    `<span class="player-chip ${p.alive?'':'dead'}"><span class="dot"></span>${p.name}</span>`
+  ).join('');
+}
+
+// ---------- START GAME ----------
+async function startGame() {
+  const config = roomData.role_config;
+  const rolePool = [];
+  for(let i=0;i<config.wolf;i++) rolePool.push('wolf');
+  for(let i=0;i<config.citizen;i++) rolePool.push('citizen');
+  for(let i=0;i<config.seer;i++) rolePool.push('seer');
+  for(let i=0;i<config.knight;i++) rolePool.push('knight');
+  const shuffled = shuffle(rolePool);
+
+  for(let i=0; i<allPlayers.length; i++){
+    await sb.from('jinro_players').update({ role: shuffled[i] }).eq('id', allPlayers[i].id);
+  }
+
+  await sb.from('jinro_rooms').update({ status: 'playing', phase: 'day', day: 1 }).eq('id', myRoomId);
+  showScreen('screen-host-game');
+  updatePhaseDisplay();
+  renderHostPlayerList();
+}
+
+// ---------- SHOW PLAYER GAME ----------
+function showPlayerGame(role) {
+  const r = ROLES[role] || ROLES.citizen;
+  const rc = document.getElementById('p-role-card');
+  rc.className = 'role-card ' + r.cls;
+  rc.innerHTML = `<div class="rc-icon">${r.icon}</div><div class="rc-name">${r.name}</div><div class="rc-desc">${r.desc}</div>`;
+  showScreen('screen-player-game');
+  updatePhaseDisplay();
+}
+
+// ---------- PHASE ----------
+async function setPhase(phase) {
+  await sb.from('jinro_rooms').update({ phase }).eq('id', myRoomId);
+  roomData.phase = phase;
+  updatePhaseDisplay();
+}
+
+async function nextDay() {
+  const newDay = (roomData.day || 1) + 1;
+  await sb.from('jinro_rooms').update({ day: newDay, phase: 'day' }).eq('id', myRoomId);
+  roomData.day = newDay;
+  roomData.phase = 'day';
+  updatePhaseDisplay();
+}
+
+function updatePhaseDisplay() {
+  if(!roomData) return;
+  const phase = roomData.phase;
+  const day = roomData.day || 1;
+  const dayText = `第${day}日目`;
+
+  const phaseMap = {
+    day:   { text: '☀️ 昼フェーズ — 議論タイム', cls: 'phase-day', info: '☀️ 昼フェーズです。<br>みんなで議論して人狼を探しましょう。' },
+    night: { text: '🌙 夜フェーズ — 行動タイム', cls: 'phase-night', info: '🌙 夜フェーズです。<br>人狼は誰を襲うか決めてください。<br>占い師・騎士も行動してください。' },
+    vote:  { text: '⚖️ 投票フェーズ — 追放投票', cls: 'phase-vote', info: '⚖️ 投票フェーズです。<br>誰を追放するか投票してください。' },
+  };
+  const pm = phaseMap[phase] || phaseMap.day;
+
+  ['h-phase-banner','p-phase-banner'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el){ el.textContent = pm.text; el.className = 'phase-banner ' + pm.cls; }
+  });
+  ['h-day-count','p-day-count'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.textContent = dayText;
+  });
+  const pi = document.getElementById('p-phase-info');
+  if(pi) pi.innerHTML = pm.info;
+}
+
+// ---------- TOGGLE ALIVE ----------
+async function toggleAlive(playerId) {
+  const player = allPlayers.find(p => p.id === playerId);
+  if(!player) return;
+  await sb.from('jinro_players').update({ alive: !player.alive }).eq('id', playerId);
+}
+
+// ---------- END GAME ----------
+async function endGame() {
+  await sb.from('jinro_rooms').update({ status: 'ended' }).eq('id', myRoomId);
+  showResult();
+}
+
+function showResult() {
+  const wolves = allPlayers.filter(p=>ROLES[p.role]?.team==='wolf');
+  const aliveWolves = wolves.filter(p=>p.alive).length;
+  const aliveCiti = allPlayers.filter(p=>p.alive && ROLES[p.role]?.team==='citizen').length;
+  const wolfWin = aliveWolves >= aliveCiti;
+
+  const rb = document.getElementById('result-banner');
+  rb.className = 'result-banner ' + (wolfWin ? 'result-wolf' : 'result-citizen');
+  rb.innerHTML = `<div class="rb-icon">${wolfWin?'🐺':'🎉'}</div><div class="rb-title">${wolfWin?'人狼の勝利！':'市民の勝利！'}</div>`;
+
+  const rl = document.getElementById('result-role-list');
+  rl.innerHTML = allPlayers.map(p => {
+    const r = ROLES[p.role] || {};
+    return `<div style="display:flex;align-items:center;gap:10px;font-size:0.9rem;padding:10px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+      <span style="font-size:1.3rem">${r.icon||'?'}</span>
+      <span style="flex:1;font-weight:700">${p.name}${r.icon||''}</span>
+      <span class="badge ${r.badge||''}">${r.name||'不明'}</span>
+      <span style="font-size:0.75rem;color:${p.alive?'#2ecc71':'var(--red2)'}">${p.alive?'生存':'死亡'}</span>
+    </div>`;
+  }).join('');
+
+  showScreen('screen-result');
+}
+
+async function cancelRoom() {
+  await sb.from('jinro_rooms').update({ status: 'ended' }).eq('id', myRoomId);
+  if(realtimeChannel) sb.removeChannel(realtimeChannel);
+  showScreen('screen-home');
+}
+
+function backToHome() {
+  if(realtimeChannel) sb.removeChannel(realtimeChannel);
+  myRoomId = null; myPlayerId = null; isHost = false; allPlayers = []; roomData = null;
+  showScreen('screen-home');
+}
+</script>
+</body>
+</html>
