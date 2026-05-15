@@ -488,7 +488,7 @@ function renderVoteSection(){
   } else {
     vl.style.display='flex';vl.style.flexDirection='column';vm.style.display='none';
     const targets=alive.filter(p=>p.id!==playerId);
-    vl.innerHTML=targets.map(p=>'<button class="target-btn" onclick="castVote(''+p.id+'',''+p.name+'')"><span>👤</span><span>'+p.name+'</span></button>').join('');
+    vl.innerHTML=targets.map(function(p){return '<button class="target-btn" onclick="castVote(\'' + p.id + '\',\'' + p.name + '\')"><span>👤</span><span>' + p.name + '</span></button>';}).join('');
   }
 }
 
@@ -562,7 +562,7 @@ function renderNightSection(){
     if(step==='wolf') targets=alive.filter(p=>ROLES[p.role]?.team!=='wolf');
     else targets=alive.filter(p=>p.id!==playerId);
     const cls=step==='wolf'?'t-wolf':step==='seer'?'t-seer':'t-knight';
-    if(na)na.innerHTML='<div class="target-list">'+targets.map(p=>'<button class="target-btn '+cls+'" onclick="doNight(''+p.id+'',''+p.name+'')"><span>👤</span><span>'+p.name+'</span></button>').join('')+'</div>';
+    if(na)na.innerHTML='<div class="target-list">'+targets.map(function(p){return '<button class="target-btn '+cls+'" onclick="doNight(\'' + p.id + '\',\'' + p.name + '\')">'+'<span>👤</span><span>'+p.name+'</span></button>';}).join('')+'</div>';
   } else if(myRole===step&&acted){
     if(na)na.innerHTML='<div style="text-align:center;padding:0.75rem;color:var(--gold);font-size:0.85rem">✅ 行動しました！次の役職を待っています...</div>';
     if(nw)nw.style.display='none';
