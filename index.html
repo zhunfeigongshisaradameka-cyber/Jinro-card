@@ -499,7 +499,7 @@ async function nextDay(){
   room.day=d;room.phase='day';updatePhase();
 }
 
-async function toggleA(pid){
+async async function toggleA(pid){
   const p=players.find(x=>x.id===pid);if(!p)return;
   await sb.from('jinro_players').update({alive:!p.alive}).eq('id',pid);
 }
